@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Truth MD</title>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
 <body>
     <div class="glass-container auth-container">
@@ -15,7 +18,6 @@
                 <h2>Truth MD</h2>
             </div>
 
-            <!-- Step 1: Credentials -->
             <div id="step1">
                 <form id="loginForm">
                     <div class="form-group">
@@ -35,11 +37,9 @@
                     </div>
                 </form>
             </div>
-
-
         </div>
     </div>
-    <script src="js/auth.js"></script>
-    <script src="js/bg.js"></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/bg.js" defer></script>
 </body>
 </html>

@@ -1,12 +1,27 @@
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
+const express     = require('express');
+const cors        = require('cors');
+const path        = require('path');
+const compression = require('compression');
 const { pool, initSchema } = require('./config/db');
 
 const app = express();
+
+// Compress all responses — cuts payload size 60-80% for JSON and HTML
+app.use(compression({ level: 6 }));
+
 app.use(cors());
 app.use(express.json());
+
+// Cache static assets for 7 days; HTML pages always revalidate
+app.use(express.static(path.join(__dirname, '../frontend/public'), {
+    maxAge: '7d',
+    setHeaders(res, filePath) {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+    }
+}));
 
 // ── Boot sequence ─────────────────────────────────────────────────
 async function boot() {
@@ -73,8 +88,7 @@ app.use('/api/deployments', require('./routes/deployments'));
 app.use('/api/wallet',      require('./routes/wallet'));
 app.use('/api/admin',       require('./routes/admin'));
 
-// ── Frontend ──────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, '../frontend/public')));
+// ── Frontend fallback (SPA catch-all) ────────────────────────────
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/public/index.html'));
 });

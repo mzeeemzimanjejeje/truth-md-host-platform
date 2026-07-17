@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRUTH Host Platform</title>
+    <!-- Preconnect to CDN so the font-awesome request starts immediately -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
 <body>
     <div class="glass-container">
@@ -40,7 +44,8 @@
         </section>
     </div>
 
-    <script src="js/main.js"></script>
-    <script src="js/bg.js"></script>
+    <!-- defer: scripts run after HTML is parsed — no parser blocking -->
+    <script src="js/main.js" defer></script>
+    <script src="js/bg.js" defer></script>
 </body>
 </html>

@@ -17,7 +17,7 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
         res.json({ totalUsers, totalDeployments, pendingPurchases, completedPurchases });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -28,7 +28,7 @@ router.get('/users', auth, adminOnly, async (req, res) => {
         res.json(users.map(({ password, emailOTP, emailOTPExpiry, ...u }) => u));
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -40,7 +40,7 @@ router.delete('/users/:id', auth, adminOnly, async (req, res) => {
         res.json({ msg: 'User deleted' });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -59,7 +59,7 @@ router.patch('/users/:id/coins', auth, adminOnly, async (req, res) => {
         res.json({ msg: 'Coins updated', coins: updated.wallet.coins });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -70,7 +70,7 @@ router.get('/purchases', auth, adminOnly, async (req, res) => {
         res.json(purchases);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -109,7 +109,7 @@ router.patch('/purchases/:id/approve', auth, adminOnly, async (req, res) => {
         res.json({ msg: 'Purchase approved and coins credited' });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -125,7 +125,7 @@ router.patch('/purchases/:id/reject', auth, adminOnly, async (req, res) => {
         res.json({ msg: 'Purchase rejected' });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -136,7 +136,7 @@ router.get('/deployments', auth, adminOnly, async (req, res) => {
         res.json(deployments);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -147,7 +147,7 @@ router.delete('/deployments/:id', auth, adminOnly, async (req, res) => {
         res.json({ msg: 'Deployment deleted' });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 

@@ -75,7 +75,7 @@ router.post('/register', [
 
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -101,7 +101,7 @@ router.post('/login', [
 
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -133,7 +133,7 @@ router.post('/verify-otp', async (req, res) => {
 
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -157,7 +157,7 @@ router.post('/resend-otp', async (req, res) => {
 
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -170,7 +170,7 @@ router.get('/user', auth, async (req, res) => {
         res.json(safe);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 

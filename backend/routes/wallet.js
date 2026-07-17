@@ -28,7 +28,7 @@ router.get('/', auth, async (req, res) => {
         });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -56,7 +56,7 @@ router.post('/claim', auth, async (req, res) => {
         res.json({ coins: user.wallet.coins, lastClaim: user.wallet.lastClaim });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -218,7 +218,7 @@ router.get('/purchase-status/:checkoutId', auth, async (req, res) => {
         });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -250,7 +250,7 @@ router.get('/notifications', auth, async (req, res) => {
         res.json({ notifications, coins: user.wallet.coins });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 

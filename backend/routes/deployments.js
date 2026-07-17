@@ -89,7 +89,7 @@ router.post('/', [auth, [
         res.json(deployment);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -112,7 +112,7 @@ router.get('/', auth, async (req, res) => {
         res.json(enriched);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -133,7 +133,7 @@ router.get('/count', auth, async (req, res) => {
         res.json({ active, inactive, coins: user.wallet.coins });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -178,7 +178,7 @@ router.put('/:id/stop', auth, async (req, res) => {
         res.json({ status: 'inactive', msg: 'Bot stopped' });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -230,7 +230,7 @@ router.get('/:id/logs', auth, async (req, res) => {
         res.json({ logs: allLogs.slice(0, 150), branchName: deployment.branchName });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -250,7 +250,7 @@ router.get('/:id/status', auth, async (req, res) => {
         res.json({ status: running ? 'active' : 'inactive', startedAt });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -270,7 +270,7 @@ router.delete('/:id', auth, async (req, res) => {
         res.json({ msg: 'Deployment deleted' });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({ error: 'Server error' });
     }
 });
 

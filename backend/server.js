@@ -1,14 +1,11 @@
 require('dotenv').config();
-const express     = require('express');
-const cors        = require('cors');
-const path        = require('path');
-const compression = require('compression');
+const express = require('express');
+const cors    = require('cors');
+const path    = require('path');
 const { pool, initSchema } = require('./config/db');
 
 const app = express();
-
-// Compress all responses — cuts payload size 60-80% for JSON and HTML
-app.use(compression({ level: 6 }));
+// Note: gzip compression is handled by Nginx (see vps-deploy/nginx.conf)
 
 app.use(cors());
 app.use(express.json());

@@ -66,8 +66,7 @@ pm2 save && pm2 startup
 | `PORT` | ✅ | Server port (default 5000) |
 | `APP_URL` | ✅ | Public HTTPS URL — used for M-Pesa callbacks |
 | `GITHUB_TOKEN` | optional | Clone private bot repos |
-| `EMAIL_USER` | optional | Gmail for purchase receipts |
-| `EMAIL_PASSWORD` | optional | Gmail App Password |
+| `RESEND_API_KEY` | optional | Resend API key for OTP and purchase receipt emails |
 | `PAYFLOW_API_KEY` | optional | M-Pesa coin purchases |
 | `PAYFLOW_API_SECRET` | optional | M-Pesa coin purchases |
 | `PAYFLOW_ACCOUNT_ID` | optional | M-Pesa coin purchases |

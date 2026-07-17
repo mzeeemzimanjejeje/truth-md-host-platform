@@ -1,27 +1,33 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 
-function createTransporter() {
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
-        }
-    });
-}
+const FROM_ADDRESS = 'TRUTH Host Platform <noreply@courtneytech.xyz>';
+const RESEND_API   = 'https://api.resend.com/emails';
 
 function generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendOTPEmail(to, username, otp) {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-        console.warn('Email not configured — skipping OTP email');
+async function sendEmail({ to, subject, html }) {
+    if (!process.env.RESEND_API_KEY) {
+        console.warn('RESEND_API_KEY not set — skipping email');
         return;
     }
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `"TRUTH Host Platform" <${process.env.EMAIL_USER}>`,
+    const res = await axios.post(
+        RESEND_API,
+        { from: FROM_ADDRESS, to: Array.isArray(to) ? to : [to], subject, html },
+        {
+            headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000
+        }
+    );
+    return res.data;
+}
+
+async function sendOTPEmail(to, username, otp) {
+    await sendEmail({
         to,
         subject: 'Your Login Code – TRUTH Host Platform',
         html: `
@@ -77,14 +83,8 @@ function receiptTable(username, coins, amount, receipt, packageName) {
 }
 
 async function sendPurchaseEmail(username, coins, amount, receipt, packageName) {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-        console.warn('Email not configured — skipping purchase receipt');
-        return;
-    }
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `"TRUTH Host Platform" <${process.env.EMAIL_USER}>`,
-        to: process.env.EMAIL_USER,
+    await sendEmail({
+        to: 'noreply@courtneytech.xyz',
         subject: `✅ New Payment – ${username} bought ${coins} coins (Ksh ${amount})`,
         html: `
         <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;background:#0a192f;color:#e6f1ff;padding:36px;border-radius:14px;border:1px solid #172a45;">

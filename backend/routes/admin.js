@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { auth, adminOnly } = require('../middleware/auth');
-const User = require('../models/User');
-const Purchase = require('../models/Purchase');
+const User       = require('../models/User');
+const Purchase   = require('../models/Purchase');
 const Deployment = require('../models/Deployment');
 
 // @route   GET /api/admin/stats
@@ -24,10 +24,8 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
 // @route   GET /api/admin/users
 router.get('/users', auth, adminOnly, async (req, res) => {
     try {
-        const users = await User.find()
-            .select('-password -emailOTP -emailOTPExpiry')
-            .sort({ createdAt: -1 });
-        res.json(users);
+        const users = await User.find();
+        res.json(users.map(({ password, emailOTP, emailOTPExpiry, ...u }) => u));
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -37,8 +35,8 @@ router.get('/users', auth, adminOnly, async (req, res) => {
 // @route   DELETE /api/admin/users/:id
 router.delete('/users/:id', auth, adminOnly, async (req, res) => {
     try {
-        await User.findByIdAndDelete(req.params.id);
         await Deployment.deleteMany({ user: req.params.id });
+        await User.findByIdAndDelete(req.params.id);
         res.json({ msg: 'User deleted' });
     } catch (err) {
         console.error(err.message);
@@ -50,19 +48,15 @@ router.delete('/users/:id', auth, adminOnly, async (req, res) => {
 router.patch('/users/:id/coins', auth, adminOnly, async (req, res) => {
     try {
         const { coins } = req.body;
-        // Only deduct from admin pool when adding coins to a user (positive adjustment)
-        const admin = await User.findOne({ role: 'admin' }).select('_id');
-        const [user] = await Promise.all([
-            User.findByIdAndUpdate(
-                req.params.id,
-                { $inc: { 'wallet.coins': coins } },
-                { new: true }
-            ).select('username wallet.coins'),
-            admin && coins > 0 && User.findByIdAndUpdate(admin._id, {
-                $inc: { 'wallet.coins': -coins }
-            })
-        ]);
-        res.json({ msg: 'Coins updated', coins: user.wallet.coins });
+        const admin = await User.findOne({ role: 'admin' });
+
+        await User.findByIdAndUpdate(req.params.id, { $inc: { 'wallet.coins': coins } });
+        if (admin && coins > 0) {
+            await User.findByIdAndUpdate(admin.id, { $inc: { 'wallet.coins': -coins } });
+        }
+
+        const updated = await User.findById(req.params.id);
+        res.json({ msg: 'Coins updated', coins: updated.wallet.coins });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -72,10 +66,7 @@ router.patch('/users/:id/coins', auth, adminOnly, async (req, res) => {
 // @route   GET /api/admin/purchases
 router.get('/purchases', auth, adminOnly, async (req, res) => {
     try {
-        const purchases = await Purchase.find()
-            .populate('user', 'username email')
-            .sort({ createdAt: -1 })
-            .limit(100);
+        const purchases = await Purchase.find();
         res.json(purchases);
     } catch (err) {
         console.error(err.message);
@@ -87,46 +78,31 @@ router.get('/purchases', auth, adminOnly, async (req, res) => {
 router.patch('/purchases/:id/approve', auth, adminOnly, async (req, res) => {
     try {
         const purchase = await Purchase.findById(req.params.id);
-        if (!purchase) return res.status(404).json({ error: 'Purchase not found' });
+        if (!purchase)                    return res.status(404).json({ error: 'Purchase not found' });
         if (purchase.status !== 'pending') return res.status(400).json({ error: 'Purchase already processed' });
 
-        purchase.status = 'completed';
+        purchase.status      = 'completed';
         purchase.completedAt = new Date();
-        await purchase.save();
+        await Purchase.save(purchase);
 
-        const admin = await User.findOne({ role: 'admin' }).select('_id');
+        const admin = await User.findOne({ role: 'admin' });
+        const txEntry = (type, desc, cat) => ({
+            type, amount: purchase.coins, description: desc,
+            category: cat, createdAt: new Date()
+        });
+
         await Promise.all([
             User.findByIdAndUpdate(purchase.user, {
-                $inc: { 'wallet.coins': purchase.coins },
-                $push: {
-                    'wallet.transactions': {
-                        $each: [{
-                            type: 'earned',
-                            amount: purchase.coins,
-                            description: `Manually approved: ${purchase.coins} coins (${purchase.packageName})`,
-                            category: 'purchase',
-                            createdAt: new Date()
-                        }],
-                        $position: 0,
-                        $slice: 50
-                    }
-                }
+                $inc:  { 'wallet.coins': purchase.coins },
+                $push: { 'wallet.transactions': txEntry('earned',
+                    `Manually approved: ${purchase.coins} coins (${purchase.packageName})`,
+                    'purchase') }
             }),
-            admin && User.findByIdAndUpdate(admin._id, {
-                $inc: { 'wallet.coins': -purchase.coins },
-                $push: {
-                    'wallet.transactions': {
-                        $each: [{
-                            type: 'spent',
-                            amount: purchase.coins,
-                            description: `Manually approved sale: ${purchase.coins} coins (${purchase.packageName})`,
-                            category: 'sale',
-                            createdAt: new Date()
-                        }],
-                        $position: 0,
-                        $slice: 50
-                    }
-                }
+            admin && User.findByIdAndUpdate(admin.id, {
+                $inc:  { 'wallet.coins': -purchase.coins },
+                $push: { 'wallet.transactions': txEntry('spent',
+                    `Manually approved sale: ${purchase.coins} coins (${purchase.packageName})`,
+                    'sale') }
             })
         ]);
 
@@ -141,12 +117,11 @@ router.patch('/purchases/:id/approve', auth, adminOnly, async (req, res) => {
 router.patch('/purchases/:id/reject', auth, adminOnly, async (req, res) => {
     try {
         const purchase = await Purchase.findById(req.params.id);
-        if (!purchase) return res.status(404).json({ error: 'Purchase not found' });
+        if (!purchase)                    return res.status(404).json({ error: 'Purchase not found' });
         if (purchase.status !== 'pending') return res.status(400).json({ error: 'Purchase already processed' });
 
         purchase.status = 'failed';
-        await purchase.save();
-
+        await Purchase.save(purchase);
         res.json({ msg: 'Purchase rejected' });
     } catch (err) {
         console.error(err.message);
@@ -157,9 +132,7 @@ router.patch('/purchases/:id/reject', auth, adminOnly, async (req, res) => {
 // @route   GET /api/admin/deployments
 router.get('/deployments', auth, adminOnly, async (req, res) => {
     try {
-        const deployments = await Deployment.find()
-            .populate('user', 'username')
-            .sort({ createdAt: -1 });
+        const deployments = await Deployment.find();
         res.json(deployments);
     } catch (err) {
         console.error(err.message);

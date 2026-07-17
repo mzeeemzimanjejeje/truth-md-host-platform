@@ -7,13 +7,13 @@ const User       = require('../models/User');
 const botManager = require('../services/botManager');
 
 // Helper: save a log entry to DB
-async function dbLog(deployment, message, level = 'info') {
-    deployment.logs.unshift({ message, level, timestamp: new Date() });
-    if (deployment.logs.length > 100) deployment.logs = deployment.logs.slice(0, 100);
-    await deployment.save();
+async function dbLog(dep, message, level = 'info') {
+    dep.logs.unshift({ message, level, timestamp: new Date() });
+    if (dep.logs.length > 100) dep.logs = dep.logs.slice(0, 100);
+    await Deployment.save(dep);
 }
 
-// @route   POST api/deployments
+// @route   POST /api/deployments
 router.post('/', [auth, [
     check('branchName', 'Service name is required').not().isEmpty(),
     check('sessionId',   'SESSION_ID is required').not().isEmpty(),
@@ -32,30 +32,29 @@ router.post('/', [auth, [
         const exists = await Deployment.findOne({ branchName });
         if (exists) return res.status(400).json({ msg: 'Service name already in use' });
 
-        // Create deployment record first to get an ID
-        const deployment = new Deployment({
-            user:   req.user.id,
+        const deployment = await Deployment.create({
+            user:       req.user.id,
             branchName,
             sessionId,
             ownerNumber,
-            prefix: prefix || '.',
-            repoUrl: repoUrl || null,
-            status:  'pending',
-            logs: [{ message: `Deployment "${branchName}" created.`, level: 'info' }]
+            prefix:     prefix || '.',
+            repoUrl:    repoUrl || null,
+            status:     'pending',
+            logs:       [{ message: `Deployment "${branchName}" created.`, level: 'info', timestamp: new Date() }]
         });
 
         // Deduct coins
-        user.wallet.coins -= 10;
-        user.wallet.transactions.unshift({
-            type: 'spent', amount: 10,
-            description: `Bot deployed: ${branchName}`, category: 'deployment'
+        await User.findByIdAndUpdate(req.user.id, {
+            $inc:  { 'wallet.coins': -10 },
+            $push: { 'wallet.transactions': {
+                type: 'spent', amount: 10,
+                description: `Bot deployed: ${branchName}`, category: 'deployment',
+                createdAt: new Date()
+            }}
         });
-        if (user.wallet.transactions.length > 50) user.wallet.transactions.pop();
-        await user.save();
-        await deployment.save();
 
-        // Clone + detect + install + start (async — don't block response)
-        const id = deployment._id.toString();
+        // Clone + install + start (async)
+        const id = deployment.id;
         (async () => {
             const log = (msg, level = 'info') => {
                 botManager.pushLog(id, msg, level);
@@ -67,26 +66,23 @@ router.post('/', [auth, [
                     const { framework, entryPoint } = await botManager.cloneRepo(repoUrl, id, log);
                     deployment.detectedFramework = framework;
                     deployment.entryPoint        = entryPoint;
-                    await deployment.save();
+                    await Deployment.save(deployment);
 
-                    // Write env vars to .env
                     botManager.writeEnv(id, { SESSION_ID: sessionId, OWNER_NUMBER: ownerNumber, PREFIX: prefix || '.' });
 
                     await botManager.installDeps(id, log);
+                    await botManager.startBot(deployment, log);
 
-                    const pid = await botManager.startBot(deployment, log);
                     deployment.status     = 'active';
                     deployment.lastActive = new Date();
-                    await deployment.save();
+                    await Deployment.save(deployment);
                 } else {
                     deployment.status = 'active';
                     await dbLog(deployment, 'No GitHub repo provided — bot marked active without process.', 'warn');
-                    await deployment.save();
                 }
             } catch (err) {
                 deployment.status = 'inactive';
                 await dbLog(deployment, `Startup error: ${err.message}`, 'error');
-                await deployment.save();
             }
         })();
 
@@ -97,24 +93,20 @@ router.post('/', [auth, [
     }
 });
 
-// @route   GET api/deployments
+// @route   GET /api/deployments
 router.get('/', auth, async (req, res) => {
     try {
-        const deployments = await Deployment.find({ user: req.user.id })
-            .select('-logs')
-            .sort({ createdAt: -1 });
+        const deployments = await Deployment.find({ user: req.user.id });
 
-        // Merge real running status + startedAt from botManager
         const enriched = deployments.map(d => {
-            const obj = d.toObject();
             if (d.repoUrl) {
-                const running    = botManager.isRunning(d._id);
-                obj.status       = running ? 'active' : 'inactive';
-                obj.startedAt    = running ? botManager.getStartedAt(d._id) : null;
+                const running = botManager.isRunning(d.id);
+                d.status    = running ? 'active' : 'inactive';
+                d.startedAt = running ? botManager.getStartedAt(d.id) : null;
             } else {
-                obj.startedAt    = d.status === 'active' ? (d.lastActive || d.createdAt) : null;
+                d.startedAt = d.status === 'active' ? (d.lastActive || d.createdAt) : null;
             }
-            return obj;
+            return d;
         });
 
         res.json(enriched);
@@ -124,15 +116,17 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-// @route   GET api/deployments/count
+// @route   GET /api/deployments/count
 router.get('/count', auth, async (req, res) => {
     try {
-        const user        = await User.findById(req.user.id);
-        const deployments = await Deployment.find({ user: req.user.id });
+        const [user, deployments] = await Promise.all([
+            User.findById(req.user.id),
+            Deployment.find({ user: req.user.id })
+        ]);
 
         let active = 0, inactive = 0;
         deployments.forEach(d => {
-            const running = d.repoUrl ? botManager.isRunning(d._id) : d.status === 'active';
+            const running = d.repoUrl ? botManager.isRunning(d.id) : d.status === 'active';
             running ? active++ : inactive++;
         });
 
@@ -143,10 +137,10 @@ router.get('/count', auth, async (req, res) => {
     }
 });
 
-// @route   PUT api/deployments/:id/start
+// @route   PUT /api/deployments/:id/start
 router.put('/:id/start', auth, async (req, res) => {
     try {
-        const deployment = await Deployment.findOne({ _id: req.params.id, user: req.user.id });
+        const deployment = await Deployment.findOne({ id: req.params.id, user: req.user.id });
         if (!deployment) return res.status(404).json({ msg: 'Deployment not found' });
 
         const log = (msg, level = 'info') => {
@@ -158,11 +152,10 @@ router.put('/:id/start', auth, async (req, res) => {
             await botManager.startBot(deployment, log);
             deployment.status     = 'active';
             deployment.lastActive = new Date();
-            await deployment.save();
+            await Deployment.save(deployment);
         } else {
             deployment.status = 'active';
             await dbLog(deployment, 'Bot started.', 'info');
-            await deployment.save();
         }
 
         res.json({ status: 'active', msg: 'Bot started successfully' });
@@ -172,16 +165,15 @@ router.put('/:id/start', auth, async (req, res) => {
     }
 });
 
-// @route   PUT api/deployments/:id/stop
+// @route   PUT /api/deployments/:id/stop
 router.put('/:id/stop', auth, async (req, res) => {
     try {
-        const deployment = await Deployment.findOne({ _id: req.params.id, user: req.user.id });
+        const deployment = await Deployment.findOne({ id: req.params.id, user: req.user.id });
         if (!deployment) return res.status(404).json({ msg: 'Deployment not found' });
 
         botManager.stopBot(req.params.id);
         deployment.status = 'inactive';
         await dbLog(deployment, 'Bot stopped.', 'warn');
-        await deployment.save();
 
         res.json({ status: 'inactive', msg: 'Bot stopped' });
     } catch (err) {
@@ -190,10 +182,10 @@ router.put('/:id/stop', auth, async (req, res) => {
     }
 });
 
-// @route   PUT api/deployments/:id/restart
+// @route   PUT /api/deployments/:id/restart
 router.put('/:id/restart', auth, async (req, res) => {
     try {
-        const deployment = await Deployment.findOne({ _id: req.params.id, user: req.user.id });
+        const deployment = await Deployment.findOne({ id: req.params.id, user: req.user.id });
         if (!deployment) return res.status(404).json({ msg: 'Deployment not found' });
 
         const log = (msg, level = 'info') => {
@@ -205,11 +197,11 @@ router.put('/:id/restart', auth, async (req, res) => {
             await botManager.restartBot(deployment, log);
             deployment.status     = 'active';
             deployment.lastActive = new Date();
+            await Deployment.save(deployment);
         } else {
             deployment.status = 'active';
-            await log('Bot restarted.', 'info');
+            await dbLog(deployment, 'Bot restarted.', 'info');
         }
-        await deployment.save();
 
         res.json({ status: 'active', msg: 'Bot restarted' });
     } catch (err) {
@@ -218,18 +210,15 @@ router.put('/:id/restart', auth, async (req, res) => {
     }
 });
 
-// @route   GET api/deployments/:id/logs
+// @route   GET /api/deployments/:id/logs
 router.get('/:id/logs', auth, async (req, res) => {
     try {
-        const deployment = await Deployment.findOne({ _id: req.params.id, user: req.user.id })
-            .select('logs branchName repoUrl');
+        const deployment = await Deployment.findOne({ id: req.params.id, user: req.user.id });
         if (!deployment) return res.status(404).json({ msg: 'Deployment not found' });
 
-        // Merge in-memory logs (real-time stdout) with DB logs
         const memLogs = botManager.getLogs(req.params.id);
         const dbLogs  = deployment.logs || [];
 
-        // Combine and deduplicate by timestamp + message
         const allLogs = [...memLogs, ...dbLogs].reduce((acc, l) => {
             const key = `${l.message}|${new Date(l.timestamp).getTime()}`;
             if (!acc.seen.has(key)) { acc.seen.add(key); acc.list.push(l); }
@@ -245,17 +234,16 @@ router.get('/:id/logs', auth, async (req, res) => {
     }
 });
 
-// @route   GET api/deployments/:id/status
+// @route   GET /api/deployments/:id/status
 router.get('/:id/status', auth, async (req, res) => {
     try {
-        const deployment = await Deployment.findOne({ _id: req.params.id, user: req.user.id })
-            .select('status repoUrl');
+        const deployment = await Deployment.findOne({ id: req.params.id, user: req.user.id });
         if (!deployment) return res.status(404).json({ msg: 'Deployment not found' });
 
-        const running    = deployment.repoUrl
+        const running   = deployment.repoUrl
             ? botManager.isRunning(req.params.id)
             : deployment.status === 'active';
-        const startedAt  = running
+        const startedAt = running
             ? (deployment.repoUrl ? botManager.getStartedAt(req.params.id) : (deployment.lastActive || null))
             : null;
 
@@ -266,21 +254,19 @@ router.get('/:id/status', auth, async (req, res) => {
     }
 });
 
-// @route   DELETE api/deployments/:id
+// @route   DELETE /api/deployments/:id
 router.delete('/:id', auth, async (req, res) => {
     try {
-        const deployment = await Deployment.findOne({ _id: req.params.id, user: req.user.id });
+        const deployment = await Deployment.findOne({ id: req.params.id, user: req.user.id });
         if (!deployment) return res.status(404).json({ msg: 'Deployment not found' });
 
         botManager.stopBot(req.params.id);
 
-        // Remove bot files
-        const { botDir } = botManager;
-        const dir = botDir(req.params.id);
+        const dir = botManager.botDir(req.params.id);
         const fs  = require('fs');
         if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
 
-        await deployment.deleteOne();
+        await Deployment.findByIdAndDelete(req.params.id);
         res.json({ msg: 'Deployment deleted' });
     } catch (err) {
         console.error(err.message);

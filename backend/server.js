@@ -1,135 +1,115 @@
-// backend/server.js
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
+const cors    = require('cors');
+const path    = require('path');
+const { pool, initSchema } = require('./config/db');
 
-// Initialize Express
 const app = express();
-
-// Basic Middleware
 app.use(cors());
 app.use(express.json());
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  authSource: 'admin',
-  serverSelectionTimeoutMS: 10000,
-})
-.then(async () => {
-  console.log('MongoDB Connected');
+// ── Boot sequence ─────────────────────────────────────────────────
+async function boot() {
+    // 1. Create tables if they don't exist
+    await initSchema();
 
-  // ── Seed admin account ───────────────────────────────────────────────────
-  const User = require('./models/User');
-  const existing = await User.findOne({ username: process.env.ADMIN_USERNAME });
-  if (!existing) {
-    await User.create({
-      username: process.env.ADMIN_USERNAME,
-      email: 'admin@truthhost.local',
-      password: process.env.ADMIN_PASSWORD,
-      role: 'admin',
-      isEmailVerified: true,
-      wallet: { coins: 6000000 }
-    });
-    console.log('Admin account created with 6,000,000 coins');
-  } else if (existing.wallet.coins === 0) {
-    await User.updateOne({ _id: existing._id }, { $set: { 'wallet.coins': 6000000 } });
-    console.log('Admin wallet initialised to 6,000,000 coins');
-  }
-
-  // ── Auto-restart bots that were active before last shutdown ─────────────
-  const Deployment  = require('./models/Deployment');
-  const botManager  = require('./services/botManager');
-  const fs          = require('fs');
-
-  const activeBots = await Deployment.find({ status: 'active', repoUrl: { $exists: true, $ne: null } });
-
-  if (activeBots.length > 0) {
-    console.log(`Auto-restarting ${activeBots.length} bot(s)...`);
-    for (const deployment of activeBots) {
-      const id  = deployment._id.toString();
-      const dir = botManager.botDir(id);
-
-      if (!fs.existsSync(dir)) {
-        console.warn(`  [SKIP] ${deployment.branchName} — bot files missing, marking inactive`);
-        await Deployment.updateOne({ _id: deployment._id }, { $set: { status: 'inactive' } });
-        continue;
-      }
-
-      try {
-        await botManager.startBot(deployment, (msg, level) => {
-          botManager.pushLog(id, msg, level);
+    // 2. Seed admin account
+    const User = require('./models/User');
+    const existing = await User.findOne({ username: process.env.ADMIN_USERNAME });
+    if (!existing) {
+        await User.create({
+            username:        process.env.ADMIN_USERNAME,
+            email:           'admin@truthhost.local',
+            password:        process.env.ADMIN_PASSWORD,
+            role:            'admin',
+            isEmailVerified: true,
+            wallet:          { coins: 6000000 }
         });
-        console.log(`  [OK] ${deployment.branchName} restarted`);
-      } catch (err) {
-        console.error(`  [FAIL] ${deployment.branchName}: ${err.message}`);
-        await Deployment.updateOne({ _id: deployment._id }, { $set: { status: 'inactive' } });
-      }
+        console.log('Admin account created with 6,000,000 coins');
+    } else if (existing.wallet.coins === 0) {
+        existing.wallet.coins = 6000000;
+        await User.save(existing);
+        console.log('Admin wallet initialised to 6,000,000 coins');
     }
-    console.log('Auto-restart complete.');
-  }
-})
-.catch(err => console.error('MongoDB Connection Error:', err.message));
 
-// Route Imports (must be after middleware but before error handling)
-const authRouter = require('./routes/auth');
-const deploymentsRouter = require('./routes/deployments');
-const walletRouter = require('./routes/wallet');
-const adminRouter = require('./routes/admin');
+    // 3. Auto-restart bots that were active before last shutdown
+    const Deployment = require('./models/Deployment');
+    const botManager = require('./services/botManager');
+    const fs         = require('fs');
 
-// Route Middleware
-app.use('/api/auth', authRouter);
-app.use('/api/deployments', deploymentsRouter);
-app.use('/api/wallet', walletRouter);
-app.use('/api/admin', adminRouter);
+    const activeBots = await Deployment.find({
+        status:  'active',
+        repoUrl: { $exists: true, $ne: null }
+    });
 
-// Serve Frontend (must be after API routes)
+    if (activeBots.length > 0) {
+        console.log(`Auto-restarting ${activeBots.length} bot(s)...`);
+        for (const deployment of activeBots) {
+            const id  = deployment.id;
+            const dir = botManager.botDir(id);
+
+            if (!fs.existsSync(dir)) {
+                console.warn(`  [SKIP] ${deployment.branchName} — bot files missing, marking inactive`);
+                deployment.status = 'inactive';
+                await Deployment.save(deployment);
+                continue;
+            }
+            try {
+                await botManager.startBot(deployment, (msg, level) => botManager.pushLog(id, msg, level));
+                console.log(`  [OK] ${deployment.branchName} restarted`);
+            } catch (err) {
+                console.error(`  [FAIL] ${deployment.branchName}: ${err.message}`);
+                deployment.status = 'inactive';
+                await Deployment.save(deployment);
+            }
+        }
+        console.log('Auto-restart complete.');
+    }
+}
+
+// ── Routes ────────────────────────────────────────────────────────
+app.use('/api/auth',        require('./routes/auth'));
+app.use('/api/deployments', require('./routes/deployments'));
+app.use('/api/wallet',      require('./routes/wallet'));
+app.use('/api/admin',       require('./routes/admin'));
+
+// ── Frontend ──────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../frontend/public')));
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/public/index.html'));
+    res.sendFile(path.join(__dirname, '../frontend/public/index.html'));
 });
 
-// Error Handling (must be last middleware)
+// ── Error handler ─────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
+    console.error(err.stack);
+    res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Start Server
+// ── Start ─────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Admin access: ${process.env.ADMIN_USERNAME}`);
+const server = app.listen(PORT, async () => {
+    console.log(`Server running on port ${PORT}`);
+    try {
+        await boot();
+    } catch (err) {
+        console.error('Boot error:', err.message);
+    }
 });
 
-// ── Graceful Shutdown ─────────────────────────────────────────────────────
-// On SIGTERM/SIGINT, stop all running bots before exiting so child processes
-// are not left as orphans on the VPS.
+// ── Graceful shutdown ─────────────────────────────────────────────
 function gracefulShutdown(signal) {
-  console.log(`\n${signal} received — shutting down gracefully...`);
-  server.close(() => {
-    console.log('HTTP server closed.');
-    try {
-      const botManager = require('./services/botManager');
-      const Deployment = require('./models/Deployment');
-      Deployment.find({ status: 'active' })
-        .then(bots => {
-          bots.forEach(d => {
-            try { botManager.stopBot(d._id.toString()); } catch (_) {}
-          });
-          console.log(`Stopped ${bots.length} bot(s). Exiting.`);
-        })
-        .catch(() => {})
-        .finally(() => process.exit(0));
-    } catch (_) {
-      process.exit(0);
-    }
-  });
-  // Force exit after 10s if something hangs
-  setTimeout(() => { console.error('Forced exit.'); process.exit(1); }, 10000).unref();
+    console.log(`\n${signal} received — shutting down...`);
+    server.close(async () => {
+        try {
+            const botManager = require('./services/botManager');
+            const Deployment = require('./models/Deployment');
+            const bots = await Deployment.find({ status: 'active' });
+            bots.forEach(d => { try { botManager.stopBot(d.id); } catch (_) {} });
+            console.log(`Stopped ${bots.length} bot(s). Exiting.`);
+        } catch (_) {}
+        process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10000).unref();
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

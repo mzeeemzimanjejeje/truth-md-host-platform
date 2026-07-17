@@ -5,7 +5,7 @@ WhatsApp Bot Hosting Platform — lets users deploy, manage, and monitor WhatsAp
 ## Stack
 
 - **Backend**: Node.js + Express (`backend/server.js`, entry via `index.js`)
-- **Database**: MongoDB via Mongoose (`backend/config/db.js`)
+- **Database**: Neon PostgreSQL via native HTTP API — no npm driver needed (`backend/config/db.js`)
 - **Frontend**: Static HTML/CSS/JS in `frontend/public/`
 - **Bot management**: Custom process manager using `child_process.spawn` (`backend/services/botManager.js`)
 - **Payments**: Payflow M-Pesa integration (`backend/services/mpesa.js`, `backend/routes/wallet.js`)
@@ -59,7 +59,7 @@ pm2 save && pm2 startup
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `MONGODB_URI` | ✅ | Database connection |
+| `DATABASE_URL` | ✅ | Neon PostgreSQL connection string |
 | `JWT_SECRET` | ✅ | Token signing |
 | `ADMIN_USERNAME` | ✅ | Admin login |
 | `ADMIN_PASSWORD` | ✅ | Admin login |

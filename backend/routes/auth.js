@@ -7,6 +7,14 @@ const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../services/email');
 
+function signToken(payload) {
+    return new Promise((resolve, reject) => {
+        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' }, (err, token) => {
+            if (err) reject(err); else resolve(token);
+        });
+    });
+}
+
 // @route   POST /api/auth/register
 router.post('/register', [
     check('username', 'Username is required').not().isEmpty(),
@@ -26,38 +34,38 @@ router.post('/register', [
         if (existingEmail) return res.status(400).json({ error: 'Email already registered' });
 
         const otp = generateOTP();
-        const user = new User({
+        const isAdmin = username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD;
+
+        // Find referrer
+        let referrerId = null;
+        if (referralCode && !isAdmin) {
+            const referrer = await User.findOne({ username: referralCode });
+            if (referrer) referrerId = referrer.id;
+        }
+
+        const user = await User.create({
             username,
             email: email.toLowerCase(),
             password,
-            emailOTP: otp,
-            emailOTPExpiry: new Date(Date.now() + 10 * 60 * 1000)
+            emailOTP:       isAdmin ? null : otp,
+            emailOTPExpiry: isAdmin ? null : new Date(Date.now() + 10 * 60 * 1000),
+            isEmailVerified: isAdmin,
+            role:           isAdmin ? 'admin' : 'user',
+            wallet:         { coins: isAdmin ? 6000000 : 10 },
+            referredBy:     referrerId
         });
 
-        if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
-            user.role = 'admin';
-            user.isEmailVerified = true;
-        }
-
-        if (referralCode) {
-            const referrer = await User.findOne({ username: referralCode });
-            if (referrer) {
-                user.referredBy = referrer._id;
-                referrer.referrals.push(user._id);
-                referrer.wallet.coins += 5;
-                await referrer.save();
-            }
-        }
-
-        await user.save();
-
-        // Admin skips OTP — log straight in
-        if (user.isEmailVerified) {
-            const payload = { user: { id: user.id, role: user.role } };
-            return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' }, (err, token) => {
-                if (err) throw err;
-                res.json({ token });
+        // Credit referrer
+        if (referrerId) {
+            await User.findByIdAndUpdate(referrerId, {
+                $inc: { 'wallet.coins': 5 },
+                $push: { referrals: user.id }
             });
+        }
+
+        if (isAdmin) {
+            const token = await signToken({ user: { id: user.id, role: user.role } });
+            return res.json({ token });
         }
 
         sendOTPEmail(user.email, username, otp)
@@ -88,13 +96,8 @@ router.post('/login', [
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-        // Login directly — no OTP required
-        const payload = { user: { id: user.id, role: user.role } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' }, (err, token) => {
-            if (err) throw err;
-            res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
-        });
-        return;
+        const token = await signToken({ user: { id: user.id, role: user.role } });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
 
     } catch (err) {
         console.error(err.message);
@@ -102,7 +105,7 @@ router.post('/login', [
     }
 });
 
-// @route   POST /api/auth/verify-otp  (used for both signup & login)
+// @route   POST /api/auth/verify-otp
 router.post('/verify-otp', async (req, res) => {
     const { userId, otp } = req.body;
     if (!userId || !otp) return res.status(400).json({ error: 'userId and otp are required' });
@@ -111,28 +114,22 @@ router.post('/verify-otp', async (req, res) => {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        if (!user.emailOTP || user.emailOTP !== otp.trim()) {
+        if (!user.emailOTP || user.emailOTP !== otp.trim())
             return res.status(400).json({ error: 'Invalid verification code' });
-        }
 
-        if (new Date() > user.emailOTPExpiry) {
+        if (new Date() > new Date(user.emailOTPExpiry))
             return res.status(400).json({ error: 'Code has expired. Please request a new one.' });
-        }
 
         user.isEmailVerified = true;
-        user.emailOTP = undefined;
-        user.emailOTPExpiry = undefined;
-        await user.save();
+        user.emailOTP        = null;
+        user.emailOTPExpiry  = null;
+        await User.save(user);
 
-        // Send welcome email now that email is confirmed
         sendWelcomeEmail(user.email, user.username)
             .catch(e => console.error('Welcome email error:', e.message));
 
-        const payload = { user: { id: user.id, role: user.role } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' }, (err, token) => {
-            if (err) throw err;
-            res.json({ token });
-        });
+        const token = await signToken({ user: { id: user.id, role: user.role } });
+        res.json({ token });
 
     } catch (err) {
         console.error(err.message);
@@ -151,9 +148,9 @@ router.post('/resend-otp', async (req, res) => {
         if (!user.email) return res.status(400).json({ error: 'No email on file' });
 
         const otp = generateOTP();
-        user.emailOTP = otp;
-        user.emailOTPExpiry = new Date(Date.now() + 10 * 60 * 1000);
-        await user.save();
+        user.emailOTP        = otp;
+        user.emailOTPExpiry  = new Date(Date.now() + 10 * 60 * 1000);
+        await User.save(user);
 
         await sendOTPEmail(user.email, user.username, otp);
         res.json({ msg: 'A new code has been sent to your email.' });
@@ -167,8 +164,10 @@ router.post('/resend-otp', async (req, res) => {
 // @route   GET /api/auth/user
 router.get('/user', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password -emailOTP -emailOTPExpiry');
-        res.json(user);
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        const { password, emailOTP, emailOTPExpiry, ...safe } = user;
+        res.json(safe);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

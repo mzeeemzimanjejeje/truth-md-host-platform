@@ -18,7 +18,7 @@
   "file_denylist": [],
   "startup": "if [ ! -d node_modules ]; then npm install --production; fi && node index.js",
   "config": {
-    "files": "{\".env\":{\"parser\":\"properties\",\"find\":{\"MONGODB_URI\":\"{{server.build.env.MONGODB_URI}}\",\"JWT_SECRET\":\"{{server.build.env.JWT_SECRET}}\",\"PORT\":\"{{server.build.env.PORT}}\",\"ADMIN_USERNAME\":\"{{server.build.env.ADMIN_USERNAME}}\",\"ADMIN_PASSWORD\":\"{{server.build.env.ADMIN_PASSWORD}}\",\"PAYFLOW_API_KEY\":\"{{server.build.env.PAYFLOW_API_KEY}}\",\"PAYFLOW_API_SECRET\":\"{{server.build.env.PAYFLOW_API_SECRET}}\",\"PAYFLOW_ACCOUNT_ID\":\"{{server.build.env.PAYFLOW_ACCOUNT_ID}}\"}}}",
+    "files": "{\".env\":{\"parser\":\"properties\",\"find\":{\"DATABASE_URL":"{{server.build.env.DATABASE_URL}}",\"JWT_SECRET\":\"{{server.build.env.JWT_SECRET}}\",\"PORT\":\"{{server.build.env.PORT}}\",\"ADMIN_USERNAME\":\"{{server.build.env.ADMIN_USERNAME}}\",\"ADMIN_PASSWORD\":\"{{server.build.env.ADMIN_PASSWORD}}\",\"PAYFLOW_API_KEY\":\"{{server.build.env.PAYFLOW_API_KEY}}\",\"PAYFLOW_API_SECRET\":\"{{server.build.env.PAYFLOW_API_SECRET}}\",\"PAYFLOW_ACCOUNT_ID\":\"{{server.build.env.PAYFLOW_ACCOUNT_ID}}\"}}}",
     "startup": "{\"done\":\"Server running on port\"}",
     "logs": "{}",
     "stop": "^C"
@@ -32,10 +32,10 @@
   },
   "variables": [
     {
-      "name": "MongoDB URI",
-      "description": "MongoDB Atlas connection string",
-      "env_variable": "MONGODB_URI",
-      "default_value": "mongodb+srv://courtney:20022828Me@techword.xbm6pwv.mongodb.net/?appName=Techword",
+      "name": "Database URL",
+      "description": "Neon PostgreSQL connection string",
+      "env_variable": "DATABASE_URL",
+      "default_value": "postgresql://neondb_owner:npg_I6P1ZREhXvNo@ep-empty-cloud-a85705a6-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
       "user_viewable": true,
       "user_editable": true,
       "rules": "required|string|max:512"
@@ -44,7 +44,7 @@
       "name": "JWT Secret",
       "description": "Long random string for signing JWT tokens",
       "env_variable": "JWT_SECRET",
-      "default_value": "truth_host_super_secret_2026",
+      "default_value": "fMMkweqmHkhh9q8reFeTo9Z+G4F8hQU89EdYl1cmQc8=",
       "user_viewable": true,
       "user_editable": true,
       "rules": "required|string|max:256"

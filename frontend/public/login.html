@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Truth MD</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="glass-container auth-container">
+        <div class="auth-form">
+            <div class="logo">
+                <i class="fas fa-snowflake"></i>
+                <h2>Truth MD</h2>
+            </div>
+
+            <!-- Step 1: Credentials -->
+            <div id="step1">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%">
+                        <span id="loginText">Login</span>
+                        <span id="loginSpinner" class="spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i></span>
+                    </button>
+                    <div class="auth-links">
+                        <p>Don't have an account? <a href="signup.html">Sign up</a></p>
+                    </div>
+                </form>
+            </div>
+
+
+        </div>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/bg.js"></script>
+</body>
+</html>

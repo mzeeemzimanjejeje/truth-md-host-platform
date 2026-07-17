@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up | Truth MD</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="glass-container auth-container">
+        <div class="auth-form">
+            <div class="logo">
+                <i class="fas fa-snowflake"></i>
+                <h2>Truth MD</h2>
+            </div>
+
+            <!-- Step 1: Details -->
+            <div id="step1">
+                <form id="signupForm">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" autocomplete="email" placeholder="you@example.com" required>
+                        <small style="color:var(--text-secondary);font-size:0.78rem;">A code will be sent here to verify your account.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password (min 6 characters)</label>
+                        <input type="password" id="password" autocomplete="new-password" minlength="6" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="referralCode">Referral Code (optional)</label>
+                        <input type="text" id="referralCode">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%">
+                        <span id="signupText">Create Account</span>
+                        <span id="signupSpinner" class="spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i></span>
+                    </button>
+                    <div class="auth-links">
+                        <p>Already have an account? <a href="login.html">Login</a></p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Step 2: OTP -->
+            <div id="step2" style="display:none;text-align:center;">
+                <div style="font-size:3rem;color:var(--accent);margin-bottom:16px;">
+                    <i class="fas fa-envelope-open-text"></i>
+                </div>
+                <h3 style="margin-bottom:8px;">Check Your Email</h3>
+                <p style="color:var(--text-secondary);margin-bottom:24px;">
+                    We sent a 6-digit code to<br><strong id="displayEmail"></strong>
+                </p>
+                <form id="otpForm">
+                    <div class="form-group">
+                        <label for="otpInput">Verification Code</label>
+                        <input type="text" id="otpInput" maxlength="6" placeholder="000000"
+                            style="text-align:center;font-size:1.6rem;letter-spacing:10px;font-weight:bold;"
+                            autocomplete="one-time-code" inputmode="numeric" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%">
+                        <span id="verifyText">Verify &amp; Enter</span>
+                        <span id="verifySpinner" class="spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i></span>
+                    </button>
+                </form>
+                <p style="margin-top:16px;color:var(--text-secondary);font-size:0.85rem;">
+                    Didn't get it? <button id="resendBtn" class="notif-clear-btn" style="font-size:0.85rem;">Resend code</button>
+                </p>
+            </div>
+
+        </div>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/bg.js"></script>
+</body>
+</html>

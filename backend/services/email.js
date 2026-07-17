@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const FROM_ADDRESS = 'TRUTH Host Platform <noreply@courtneytech.xyz>';
+const FROM_ADDRESS = 'TRUTH Host Platform <noreply@hosts.courtneytech.xyz>';
 const RESEND_API   = 'https://api.resend.com/emails';
 
 function generateOTP() {
@@ -84,7 +84,7 @@ function receiptTable(username, coins, amount, receipt, packageName) {
 
 async function sendPurchaseEmail(username, coins, amount, receipt, packageName) {
     await sendEmail({
-        to: 'noreply@courtneytech.xyz',
+        to: 'noreply@hosts.courtneytech.xyz',
         subject: `✅ New Payment – ${username} bought ${coins} coins (Ksh ${amount})`,
         html: `
         <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;background:#0a192f;color:#e6f1ff;padding:36px;border-radius:14px;border:1px solid #172a45;">

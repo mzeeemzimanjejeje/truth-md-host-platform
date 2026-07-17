@@ -17,10 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('.sidebar-nav li');
     const contentSections = document.querySelectorAll('.content-section');
     
-    // Admin credentials
-    const ADMIN_USERNAME = 'Courtney';
-    const ADMIN_PASSWORD = 'Truth';
-    
     // Initialize dashboard
     initDashboard();
     

@@ -174,4 +174,54 @@ router.get('/user', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/auth/change-password
+router.post('/change-password', auth, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+        return res.status(400).json({ error: 'Both currentPassword and newPassword are required' });
+    if (newPassword.length < 6)
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await User.save(user);
+
+        res.json({ msg: 'Password updated successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// @route   DELETE /api/auth/delete-account
+router.delete('/delete-account', auth, async (req, res) => {
+    try {
+        const Deployment = require('../models/Deployment');
+        const botManager  = require('../services/botManager');
+        const fs           = require('fs');
+
+        // Stop and delete all bot processes + files
+        const deployments = await Deployment.find({ user: req.user.id });
+        for (const dep of deployments) {
+            try { botManager.stopBot(dep.id); } catch (_) {}
+            const dir = botManager.botDir(dep.id);
+            if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+        }
+
+        await Deployment.deleteMany({ user: req.user.id });
+        await User.findByIdAndDelete(req.user.id);
+
+        res.json({ msg: 'Account deleted' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;

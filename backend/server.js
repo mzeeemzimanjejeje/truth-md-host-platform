@@ -100,7 +100,37 @@ app.use((err, req, res, next) => {
 
 // Start Server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Admin access: ${process.env.ADMIN_USERNAME}`);
 });
+
+// ── Graceful Shutdown ─────────────────────────────────────────────────────
+// On SIGTERM/SIGINT, stop all running bots before exiting so child processes
+// are not left as orphans on the VPS.
+function gracefulShutdown(signal) {
+  console.log(`\n${signal} received — shutting down gracefully...`);
+  server.close(() => {
+    console.log('HTTP server closed.');
+    try {
+      const botManager = require('./services/botManager');
+      const Deployment = require('./models/Deployment');
+      Deployment.find({ status: 'active' })
+        .then(bots => {
+          bots.forEach(d => {
+            try { botManager.stopBot(d._id.toString()); } catch (_) {}
+          });
+          console.log(`Stopped ${bots.length} bot(s). Exiting.`);
+        })
+        .catch(() => {})
+        .finally(() => process.exit(0));
+    } catch (_) {
+      process.exit(0);
+    }
+  });
+  // Force exit after 10s if something hangs
+  setTimeout(() => { console.error('Forced exit.'); process.exit(1); }, 10000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));

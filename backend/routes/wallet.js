@@ -78,7 +78,7 @@ router.post('/stkpush', auth, async (req, res) => {
     }
 
     try {
-        const callbackUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/api/wallet/mpesa-callback`;
+        const callbackUrl = `${process.env.APP_URL}/api/wallet/mpesa-callback`;
 
         const stkResponse = await initiateSTKPush({
             phone,

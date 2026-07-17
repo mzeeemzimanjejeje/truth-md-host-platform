@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const FROM_ADDRESS = 'TRUTH Host Platform <noreply@hosts.courtneytech.xyz>';
+const FROM_ADDRESS = 'TRUTH Host Platform <noreply@courtneytech.xyz>';
 const RESEND_API   = 'https://api.resend.com/emails';
 
 function generateOTP() {

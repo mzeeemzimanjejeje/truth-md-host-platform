@@ -5,7 +5,7 @@ const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const Purchase = require('../models/Purchase');
 const { initiateSTKPush } = require('../services/mpesa');
-const { sendPurchaseEmail } = require('../services/email');
+const { sendPurchaseEmail, sendBuyerReceiptEmail } = require('../services/email');
 
 function payflowHeaders() {
     return {
@@ -180,11 +180,16 @@ router.post('/mpesa-callback', async (req, res) => {
                     }
                 })
             ]);
-            // Send receipt email to admin
-            const buyer = await User.findById(purchase.user).select('username');
-            const buyerName = buyer?.username || 'Unknown';
+            // Send receipt emails — admin copy + buyer copy
+            const buyer = await User.findById(purchase.user).select('username email');
+            const buyerName  = buyer?.username || 'Unknown';
+            const buyerEmail = buyer?.email;
             sendPurchaseEmail(buyerName, purchase.coins, purchase.price, receipt, purchase.packageName)
-                .catch(e => console.error('Purchase email error:', e.message));
+                .catch(e => console.error('Admin receipt email error:', e.message));
+            if (buyerEmail) {
+                sendBuyerReceiptEmail(buyerEmail, buyerName, purchase.coins, purchase.price, receipt, purchase.packageName)
+                    .catch(e => console.error('Buyer receipt email error:', e.message));
+            }
             console.log(`Purchase ${checkoutRequestId} completed — ${purchase.coins} coins credited to user, deducted from admin. Receipt: ${receipt}`);
         } else {
             purchase.status = txnStatus === 'cancelled' ? 'cancelled' : 'failed';
@@ -230,6 +235,7 @@ router.get('/purchase-status/:checkoutId', auth, async (req, res) => {
                         await purchase.save();
 
                         const admin = await User.findOne({ role: 'admin' }).select('_id');
+                        const pollBuyer = await User.findById(purchase.user).select('username email');
                         await Promise.all([
                             User.findByIdAndUpdate(purchase.user, {
                                 $inc: { 'wallet.coins': purchase.coins }
@@ -238,6 +244,12 @@ router.get('/purchase-status/:checkoutId', auth, async (req, res) => {
                                 $inc: { 'wallet.coins': -purchase.coins }
                             })
                         ]);
+
+                        // Notify buyer
+                        if (pollBuyer?.email) {
+                            sendBuyerReceiptEmail(pollBuyer.email, pollBuyer.username, purchase.coins, purchase.price, purchase.mpesaReceiptNumber, purchase.packageName)
+                                .catch(e => console.error('Buyer receipt email error (poll):', e.message));
+                        }
                     } else if (txnStatus === 'failed' || txnStatus === 'cancelled') {
                         purchase.status = txnStatus;
                         await purchase.save();

@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
-const { generateOTP, sendOTPEmail } = require('../services/email');
+const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../services/email');
 
 // @route   POST /api/auth/register
 router.post('/register', [
@@ -123,6 +123,10 @@ router.post('/verify-otp', async (req, res) => {
         user.emailOTP = undefined;
         user.emailOTPExpiry = undefined;
         await user.save();
+
+        // Send welcome email now that email is confirmed
+        sendWelcomeEmail(user.email, user.username)
+            .catch(e => console.error('Welcome email error:', e.message));
 
         const payload = { user: { id: user.id, role: user.role } };
         jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' }, (err, token) => {

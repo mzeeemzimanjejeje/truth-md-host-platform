@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = 'https://payflow.top/api/v2';
+const BASE_URL = 'https://courtneytech.xyz/api/mpesa';
 
 function getHeaders() {
     return {
@@ -18,15 +18,18 @@ async function initiateSTKPush({ phone, amount, accountRef, description, callbac
     const formattedPhone = formatPhone(phone);
 
     const payload = {
-        payment_account_id: Number(process.env.PAYFLOW_ACCOUNT_ID),
         phone: formattedPhone,
         amount: Math.ceil(amount),
-        reference: accountRef,
-        description
+        accountReference: accountRef,
+        description,
+        callbackUrl
     };
 
-    const response = await axios.post(`${BASE_URL}/stkpush.php`, payload, {
-        headers: getHeaders()
+    const response = await axios.post(`${BASE_URL}/stkpush`, payload, {
+        headers: {
+            'Authorization': `Bearer ${process.env.PAYFLOW_API_KEY}`,
+            'Content-Type': 'application/json'
+        }
     });
 
     return response.data;

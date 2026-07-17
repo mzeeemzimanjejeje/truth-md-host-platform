@@ -44,7 +44,7 @@
       "name": "JWT Secret",
       "description": "Long random string for signing JWT tokens",
       "env_variable": "JWT_SECRET",
-      "default_value": "fMMkweqmHkhh9q8reFeTo9Z+G4F8hQU89EdYl1cmQc8=",
+      "default_value": "psiJ/ZeSljGjEo05FtPTVw8bJTE/KadLGR4vBaI0qDc=",
       "user_viewable": true,
       "user_editable": true,
       "rules": "required|string|max:256"
@@ -62,7 +62,7 @@
       "name": "Admin Username",
       "description": "Username for the admin account",
       "env_variable": "ADMIN_USERNAME",
-      "default_value": "Courtney",
+      "default_value": "admin",
       "user_viewable": true,
       "user_editable": true,
       "rules": "required|string|max:64"
@@ -71,7 +71,7 @@
       "name": "Admin Password",
       "description": "Password for the admin account",
       "env_variable": "ADMIN_PASSWORD",
-      "default_value": "Truth",
+      "default_value": "admin_password",
       "user_viewable": true,
       "user_editable": true,
       "rules": "required|string|max:128"

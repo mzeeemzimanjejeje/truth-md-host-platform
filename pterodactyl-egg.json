@@ -18,7 +18,7 @@
   "file_denylist": [],
   "startup": "if [ -n \"$GITHUB_TOKEN\" ]; then git remote set-url origin \"https://${GITHUB_TOKEN}@github.com/mzeeemzimanjejeje/truth-md-host-platform.git\" && git fetch origin main && git reset --hard origin/main && echo '[✓] Updated from GitHub'; fi && if [ ! -d node_modules ]; then npm install --production; fi && node index.js",
   "config": {
-    "files": "{\".env\":{\"parser\":\"properties\",\"find\":{\"DATABASE_URL":"{{server.build.env.DATABASE_URL}}",\"JWT_SECRET\":\"{{server.build.env.JWT_SECRET}}\",\"PORT\":\"{{server.build.env.PORT}}\",\"ADMIN_USERNAME\":\"{{server.build.env.ADMIN_USERNAME}}\",\"ADMIN_PASSWORD\":\"{{server.build.env.ADMIN_PASSWORD}}\",\"PAYFLOW_API_KEY\":\"{{server.build.env.PAYFLOW_API_KEY}}\",\"PAYFLOW_API_SECRET\":\"{{server.build.env.PAYFLOW_API_SECRET}}\",\"PAYFLOW_ACCOUNT_ID\":\"{{server.build.env.PAYFLOW_ACCOUNT_ID}}\"}}}",
+    "files": "{\".env\":{\"parser\":\"properties\",\"find\":{\\"DATABASE_URL\":\"{{server.build.env.DATABASE_URL}}\",\"JWT_SECRET\":\"{{server.build.env.JWT_SECRET}}\",\"PORT\":\"{{server.build.env.PORT}}\",\"ADMIN_USERNAME\":\"{{server.build.env.ADMIN_USERNAME}}\",\"ADMIN_PASSWORD\":\"{{server.build.env.ADMIN_PASSWORD}}\",\"PAYFLOW_API_KEY\":\"{{server.build.env.PAYFLOW_API_KEY}}\",\"PAYFLOW_API_SECRET\":\"{{server.build.env.PAYFLOW_API_SECRET}}\",\"PAYFLOW_ACCOUNT_ID\":\"{{server.build.env.PAYFLOW_ACCOUNT_ID}}\"}}}",
     "startup": "{\"done\":\"Server running on port\"}",
     "logs": "{}",
     "stop": "^C"
@@ -80,7 +80,7 @@
       "name": "GitHub Token",
       "description": "Personal access token for cloning private bot repos",
       "env_variable": "GITHUB_TOKEN",
-      "default_value": "",
+      "default_value": "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",
       "user_viewable": true,
       "user_editable": true,
       "rules": "nullable|string|max:256"

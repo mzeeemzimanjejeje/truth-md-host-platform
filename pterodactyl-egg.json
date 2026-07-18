@@ -129,6 +129,15 @@
       "user_viewable": true,
       "user_editable": true,
       "rules": "nullable|string|max:64"
+    },
+    {
+      "name": "Resend API Key",
+      "description": "Resend.com API key for sending OTP verification emails",
+      "env_variable": "RESEND_API_KEY",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:256"
     }
   ]
 }

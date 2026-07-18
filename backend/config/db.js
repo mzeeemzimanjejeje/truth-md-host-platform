@@ -48,6 +48,7 @@ async function initSchema() {
                 detected_framework VARCHAR(64)  DEFAULT 'Node.js Bot',
                 entry_point        VARCHAR(128) DEFAULT 'index.js',
                 last_active        TIMESTAMPTZ,
+                started_at         TIMESTAMPTZ,
                 logs               JSONB        DEFAULT '[]',
                 created_at         TIMESTAMPTZ  DEFAULT NOW()
             );
@@ -68,6 +69,10 @@ async function initSchema() {
                 created_at           TIMESTAMPTZ   DEFAULT NOW(),
                 completed_at         TIMESTAMPTZ
             );
+        `);
+        // Add columns introduced after initial deploy (safe on existing DBs)
+        await client.query(`
+            ALTER TABLE deployments ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
         `);
         console.log('Neon database schema ready.');
     } finally {

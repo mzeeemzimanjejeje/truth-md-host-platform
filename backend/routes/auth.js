@@ -63,7 +63,15 @@ router.post('/register', [
             });
         }
 
-        if (isAdmin) {
+        // Admin or no email service → auto-verify, return token immediately
+        if (isAdmin || !process.env.RESEND_API_KEY) {
+            if (!isAdmin) {
+                // Mark as verified since we can't send OTP email
+                user.isEmailVerified = true;
+                user.emailOTP        = null;
+                user.emailOTPExpiry  = null;
+                await User.save(user);
+            }
             const token = await signToken({ user: { id: user.id, role: user.role } });
             return res.json({ token });
         }

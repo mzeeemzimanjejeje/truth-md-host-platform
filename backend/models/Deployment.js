@@ -16,6 +16,7 @@ function mapRow(row) {
         detectedFramework: row.detected_framework,
         entryPoint:        row.entry_point,
         lastActive:        row.last_active,
+        startedAt:         row.started_at,
         logs:              row.logs || [],
         createdAt:         row.created_at,
         // username populated via join
@@ -132,14 +133,15 @@ const Deployment = {
         const { rows } = await pool.query(
             `UPDATE deployments SET
                 status=$1, repo_url=$2, detected_framework=$3,
-                entry_point=$4, last_active=$5, logs=$6
-             WHERE id=$7 RETURNING *`,
+                entry_point=$4, last_active=$5, started_at=$6, logs=$7
+             WHERE id=$8 RETURNING *`,
             [
                 dep.status,
-                dep.repoUrl        || null,
+                dep.repoUrl           || null,
                 dep.detectedFramework || 'Node.js Bot',
-                dep.entryPoint     || 'index.js',
-                dep.lastActive     || null,
+                dep.entryPoint        || 'index.js',
+                dep.lastActive        || null,
+                dep.startedAt         || null,
                 JSON.stringify(dep.logs || []),
                 dep.id
             ]

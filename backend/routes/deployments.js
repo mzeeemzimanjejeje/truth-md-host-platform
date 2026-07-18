@@ -75,6 +75,7 @@ router.post('/', [auth, [
 
                     deployment.status     = 'active';
                     deployment.lastActive = new Date();
+                    deployment.startedAt  = new Date();
                     await Deployment.save(deployment);
                 } else {
                     deployment.status = 'active';
@@ -152,6 +153,7 @@ router.put('/:id/start', auth, async (req, res) => {
             await botManager.startBot(deployment, log);
             deployment.status     = 'active';
             deployment.lastActive = new Date();
+            deployment.startedAt  = new Date();
             await Deployment.save(deployment);
         } else {
             deployment.status = 'active';
@@ -197,6 +199,7 @@ router.put('/:id/restart', auth, async (req, res) => {
             await botManager.restartBot(deployment, log);
             deployment.status     = 'active';
             deployment.lastActive = new Date();
+            deployment.startedAt  = new Date();
             await Deployment.save(deployment);
         } else {
             deployment.status = 'active';
